@@ -1,0 +1,31 @@
+[project]
+name = "screentest_studio"
+version = "0.1.0"
+description = "screentest_studio using crewAI"
+authors = [{ name = "Your Name", email = "you@example.com" }]
+requires-python = ">=3.10,<3.14"
+dependencies = [
+    "crewai[file-processing,litellm,tools]==1.14.4",
+    "fastapi>=0.115.0,<1.0.0",
+    "python-dotenv>=1.0.1,<2.0.0",
+    "uvicorn[standard]>=0.30.0,<1.0.0",
+]
+
+[project.scripts]
+screentest_studio = "screentest_studio.main:run"
+run_crew = "screentest_studio.main:run"
+train = "screentest_studio.main:train"
+replay = "screentest_studio.main:replay"
+test = "screentest_studio.main:test"
+run_with_trigger = "screentest_studio.main:run_with_trigger"
+serve_api = "screentest_studio.api:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.crewai]
+type = "crew"
+
+[tool.uv]
+override-dependencies = ["litellm<=1.82.6"]

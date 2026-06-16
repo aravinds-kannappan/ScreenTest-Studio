@@ -1,0 +1,136 @@
+---
+brand_intake_task:
+  description: |-
+    Read the brand pitch: {brand_pitch}
+
+    If {brand_url} is provided (not empty), scrape it using your web scraping tool to gather additional brand context — real copy, product descriptions, tone, and visual language from the brand's own website.
+
+    Extract and output a structured Brand Profile as a JSON object with exactly these fields:
+    - `brand_name`: The brand's name
+    - `one_liner`: A single punchy sentence describing what the brand does
+    - `value_prop`: The core value proposition in 1-2 sentences
+    - `target_customer`: An object with `age_range`, `psychographic`, and `pain_point`
+    - `tone_of_voice`: 3 adjectives describing the brand's tone
+    - `visual_style`: Description of the visual aesthetic
+    - `primary_goal`: One of "awareness", "waitlist", or "launch"
+    - `niche_category`: The content niche (e.g. "Gen Z wellness", "B2B SaaS", "local food & beverage")
+  expected_output: 'A validated JSON Brand Profile object containing all 8 required
+    fields: brand_name, one_liner, value_prop, target_customer (with age_range, psychographic,
+    pain_point), tone_of_voice, visual_style, primary_goal, and niche_category. No
+    fields should be null or empty.'
+  agent: brand_intake_specialist_reel_timeline_architect
+timeline_generation_task:
+  description: |-
+    Using the Brand Profile from the previous task, generate a complete Reel Timeline JSON for a 15–30 second Instagram Reel.
+
+    The timeline must be a JSON array of scene objects. Each scene object must contain:
+    - `scene_id`: Sequential integer starting at 1
+    - `time_range`: String in format "0.0-1.5s"
+    - `visual`: A description of the visual source — choose from: AI-generated image description, motion graphic instruction, or phone-shoot instruction for a founder
+    - `text`: On-screen caption text (or null if none)
+    - `vo`: Voiceover line spoken aloud (or null if none)
+    - `sfx`: Sound effect cue description (or null if none)
+    - `music_energy`: One of "low", "mid", or "high"
+
+    STRICT RULES:
+    1. Scene 1 MUST occupy time_range "0.0-1.5s" — this is the hook. Make it impossible to ignore.
+    2. The final scene MUST include a CTA in both `text` and `vo`.
+    3. Total runtime must be between 15 and 30 seconds.
+    4. Include 2–3 pattern interrupts across the timeline (visual cuts, text pops, sfx hits).
+    5. Music energy should build: start mid or high on the hook, vary through the body, peak at CTA.
+
+    After the JSON array, write a one-paragraph "Director's Note" explaining the creative strategy and why these specific scenes will work for this brand's target customer.
+  expected_output: A validated JSON array of scene objects forming the complete Reel
+    timeline (minimum 5 scenes, 15–30 seconds total), followed by a "Director's Note"
+    paragraph. Every scene must have scene_id, time_range, visual, text, vo, sfx,
+    and music_energy populated correctly. The first scene covers 0.0–1.5s, the last
+    scene contains a CTA.
+  agent: brand_intake_specialist_reel_timeline_architect
+  context:
+  - brand_intake_task
+audience_screening_task:
+  description: |-
+    You are a panel of 3 synthetic target-customer personas. Using the Brand Profile's target_customer, niche_category, and tone_of_voice fields, construct 3 distinct personas. Each persona needs:
+    - name: A realistic first name
+    - age: A specific age
+    - bio: One-line description
+    - content_habit: How and when they consume short-form video (e.g. "scrolls Instagram Reels for 45 min/day during commute, skips anything without a hook in 2s")
+
+    Then, have each persona watch every scene in the Reel timeline sequentially. For each scene, output:
+    - decision: "stay" or "swipe"
+    - engagement_score: 0-100 integer
+    - reason: One-line explanation of why they stayed or swiped
+
+    After all scene reactions, aggregate the 3 personas' decisions into a retention curve:
+    - For each scene boundary (end of each scene's time_range), calculate retention_pct as the percentage of personas still watching (100%, 67%, 33%, or 0%)
+    - Also produce an overall ctr_estimate as a percentage (0-10%) based on how compelling the CTA scene was
+
+    Output everything as a structured JSON object followed by a human-readable markdown summary table showing each scene, per-persona decisions, and aggregate retention.
+  expected_output: 'A structured JSON object with four keys: "personas" (array of
+    3 persona profiles), "scene_reactions" (nested object mapping persona name to
+    scene_id to a decision/engagement_score/reason object), "retention_curve" (array
+    of time and retention_pct data points — one per scene boundary), and "ctr_estimate"
+    (string like "4.2%"). Followed by a human-readable markdown summary table.'
+  agent: synthetic_target_customer_persona_panel
+  context:
+  - timeline_generation_task
+diagnosis_task:
+  description: |-
+    Analyse the retention curve and per-scene reactions from the Audience Screening Task. Your job is to identify the single weakest scene — the one with the largest retention drop or the highest concentration of swipe decisions across all 3 personas.
+
+    Produce a crisp, actionable diagnosis with the following:
+    1. Identify the weakest scene by scene_id and time_range
+    2. Calculate the exact drop-off percentage at that scene boundary
+    3. Write a one-sentence root cause that explains *why* personas swiped (e.g. "62% predicted drop at 0:02 — hook makes no payoff promise and has no pattern interrupt")
+    4. Generate 2–3 specific, actionable fix directions for the Fixer agent — be concrete (e.g. "Replace static product shot with a motion graphic showing the before/after contrast", not "make it more engaging")
+
+    Output as a JSON diagnosis object followed by a plain-English paragraph summarising the finding for a founder who may not be a content expert.
+  expected_output: 'A JSON diagnosis object with these keys: "weakest_scene_id" (integer),
+    "time_range" (string), "drop_off_pct" (number), "root_cause" (one-sentence string),
+    and "fix_directions" (array of 2–3 specific actionable strings). Followed by a
+    plain-English paragraph summarising the diagnosis for a non-expert founder.'
+  agent: synthetic_target_customer_persona_panel
+  context:
+  - audience_screening_task
+fix_and_re_screen_task:
+  description: |-
+    You have received two inputs via context:
+    1. The full Reel timeline (from Timeline Generation Task)
+    2. The diagnosis of the weakest scene (from Diagnosis Task)
+
+    Your job has three parts:
+
+    PART 1 — REWRITE THE WEAKEST SCENE:
+    Select the most impactful fix direction from the diagnosis. Rewrite ONLY the weakest scene — update its visual, text, vo, and sfx fields as needed. Do not change any other scenes. Write a one-line rationale explaining which fix direction you chose and why.
+
+    PART 2 — PRODUCE THE UPDATED TIMELINE:
+    Output the full timeline JSON with the rewritten scene slotted back in. The scene_id and time_range must remain unchanged.
+
+    PART 3 — RE-SCREEN WITH THE SAME 3 PERSONAS:
+    Re-run the updated timeline through the same 3 personas from the Audience Screening Task. Produce an updated retention curve using the same methodology. Then calculate the lift: the difference in retention_pct at the previously weak scene's time boundary between the original curve and the improved curve.
+
+    Return one strict JSON object only. Do not wrap it in markdown fences.
+
+    The JSON object must contain:
+    - `brand_profile`: the Brand Profile from the first task
+    - `original_timeline`: the complete original timeline array
+    - `personas`: the exact same 3 personas from the Audience Screening Task
+    - `original_retention_curve`: the original retention curve data array
+    - `diagnosis`: the diagnosis object
+    - `original_scene`: the weakest scene before the fix
+    - `rewritten_scene`: the rewritten scene after the fix
+    - `updated_timeline`: the full updated timeline array
+    - `improved_retention_curve`: the updated retention curve data array
+    - `lift_metric`: a headline string, e.g. "+23 retention points at 0:02 after rewrite"
+    - `fix_rationale`: one sentence explaining why the rewrite should lift retention
+    - `founder_summary`: a short plain-English paragraph interpreting the improvement
+  expected_output: 'One valid JSON object with brand_profile, original_timeline,
+    personas, original_retention_curve, diagnosis, original_scene, rewritten_scene,
+    updated_timeline, improved_retention_curve, lift_metric, fix_rationale, and
+    founder_summary. The output must be parseable by JSON.parse with no markdown
+    fences and no prose outside the JSON object.'
+  agent: content_surgeon_re_screen_specialist
+  context:
+  - timeline_generation_task
+  - audience_screening_task
+  - diagnosis_task
